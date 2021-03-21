@@ -1,0 +1,78 @@
+nodes:
+  - name: R0
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net0 }
+      - { name: net1, type: direct, args: R2#net0 }
+      - { name: net2, type: direct, args: C1#net0 }
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net0 }
+      - { name: net1, type: direct, args: C2#net0 }
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net1 }
+      - { name: net1, type: direct, args: C3#net0 }
+
+  - name: C1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net2 }
+  - name: C2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net1 }
+  - name: C3
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net1 }
+
+node_configs:
+  - name: R0
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.1.1/24 dev net0
+      - cmd: ip addr add 192.168.4.1/24 dev net1
+      - cmd: ip addr add 192.168.3.1/24 dev net2
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router ospf"
+          -c "network 192.168.1.0/24 area 0"
+          -c "network 192.168.4.0/24 area 0"
+          -c "network 192.168.3.0/24 area 0"
+          -c "passive-interface net2"
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.1.2/24 dev net0
+      - cmd: ip addr add 192.168.2.10/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router ospf"
+          -c "network 192.168.1.0/24 area 0"
+          -c "network 192.168.2.0/24 area 0"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.4.2/24 dev net0
+      - cmd: ip addr add 192.168.2.11/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router ospf"
+          -c "network 192.168.4.0/24 area 0"
+          -c "network 192.168.2.0/24 area 0"
+
+  - name: C1
+    cmds:
+      - cmd: ip addr add 192.168.3.2/24 dev net0
+      - cmd: ip route replace default via 192.168.3.1
+  - name: C2
+    cmds:
+      - cmd: ip addr add 192.168.2.12/24 dev net0
+      - cmd: ip route replace default via 192.168.2.10
+  - name: C3
+    cmds:
+      - cmd: ip addr add 192.168.2.13/24 dev net0
+      - cmd: ip route replace default via 192.168.2.11

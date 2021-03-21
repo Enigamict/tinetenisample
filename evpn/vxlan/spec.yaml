@@ -1,0 +1,119 @@
+
+nodes:
+#-- PE&P
+#
+  - name: R0
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net0 }
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net0 }
+      - { name: net1, type: direct, args: R2#net0 }
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net1 }
+      - { name: net1, type: direct, args: R3#net0 }
+  - name: R3
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net1 }
+      - { name: net1, type: direct, args: R4#net0 }
+  - name: R4
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R3#net1 }
+
+
+node_configs:        
+  - name: R0
+    cmds:
+      - cmd: ip addr add 192.168.0.1/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:bb:02:00
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 10.0.1.1/24 dev net1
+      - cmd: ip link set net0 address 52:54:00:aa:01:01
+      - cmd: ip link set net1 address 52:54:00:aa:01:02
+      - cmd: ip link add br100 type bridge
+      - cmd: ip link set dev br100 up
+      - cmd: >-
+          ip link add vxlan100 type vxlan id 100
+          dstport 4789
+      - cmd: ip addr add 192.168.0.2/24 dev br100
+      - cmd: ip link set dev net0 master br100
+      - cmd: ip link set dev net0 promisc on
+      - cmd: ip link set dev net0 up
+      - cmd: ip link set dev vxlan100 master br100
+      - cmd: ip link set dev vxlan100 promisc on
+      - cmd: ip link set dev vxlan100 up
+
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 1.1.1.1/32"
+          -c "router ospf"
+          -c "network 1.1.1.1/24 area 0"
+          -c "network 10.0.1.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 3.3.3.3 remote-as internal"
+          -c "neighbor 3.3.3.3 update-source 1.1.1.1"
+          -c "address-family l2vpn evpn"
+          -c "neighbor 3.3.3.3 activate"
+          -c "advertise-all-vni"
+          -c "exit-address-family"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 10.0.1.2/24 dev net0
+      - cmd: ip addr add 10.0.2.1/24 dev net1
+      - cmd: ip link set net0 address 52:54:00:cc:01:01
+      - cmd: ip link set net1 address 52:54:00:cc:02:01
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 2.2.2.2/32"
+          -c "router ospf"
+          -c "network 10.0.1.0/24 area 0"
+          -c "network 10.0.2.0/24 area 0"
+          -c "network 2.2.2.2/24 area 0"
+  - name: R3
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 10.0.2.2/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:aa:02:00
+      - cmd: ip link set net1 address 52:54:00:aa:02:01
+      - cmd: ip link add br100 type bridge
+      - cmd: ip link set dev br100 up
+      - cmd: ip addr add 192.168.0.3/24 dev br100
+      - cmd: >-
+          ip link add vxlan100 type vxlan id 100
+          dstport 4789
+      - cmd: ip link set dev net1 master br100
+      - cmd: ip link set dev net1 promisc on
+      - cmd: ip link set dev net1 up
+      - cmd: ip link set dev vxlan100 master br100
+      - cmd: ip link set dev vxlan100 promisc on
+      - cmd: ip link set dev vxlan100 up
+
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 3.3.3.3/32"
+          -c "router ospf"
+          -c "network 3.3.3.3/24 area 0"
+          -c "network 10.0.2.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 1.1.1.1 remote-as internal"
+          -c "neighbor 1.1.1.1 update-source 3.3.3.3"
+          -c "address-family l2vpn evpn"
+          -c "neighbor 1.1.1.1 activate"
+          -c "advertise-all-vni"
+          -c "exit-address-family"
+  - name: R4
+    cmds:
+      - cmd: ip addr add 192.168.0.4/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:bb:04:00

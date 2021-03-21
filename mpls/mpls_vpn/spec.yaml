@@ -1,0 +1,186 @@
+pre_init:
+  - cmds:
+    - cmd: modprobe mpls_router
+    - cmd: modprobe mpls_gso
+    - cmd: modprobe mpls_iptunnel
+
+
+nodes:
+#-- Client
+
+  - name: C0
+    image: slankdev/ubuntu:18.04
+    interfaces:
+      - { name: net0, type: direct, args: R0#net0 }
+  - name: C1
+    image: slankdev/ubuntu:18.04
+    interfaces:
+      - { name: net0, type: direct, args: R4#net1 }
+
+#-- PE&P
+#
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R0#net1 }
+      - { name: net1, type: direct, args: R2#net0 }
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net1 }
+      - { name: net1, type: direct, args: R3#net0 }
+  - name: R3
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net1 }
+      - { name: net1, type: direct, args: R4#net0 }
+
+
+#-- CE
+  - name: R0
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: C0#net0 }
+      - { name: net1, type: direct, args: R1#net0 }
+  - name: R4
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R3#net1 }
+      - { name: net1, type: direct, args: C1#net0 }
+
+node_configs:        
+  - name: R0
+    cmds:
+      - cmd: ip addr add 10.1.0.2/24 dev net0
+      - cmd: ip addr add 192.168.1.1/24 dev net1
+      - cmd: ip route add 0.0.0.0/0 via 192.168.1.2
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.1.2/24 dev net0
+      - cmd: ip addr add 192.168.2.1/24 dev net1
+      - cmd: ip link add hoge type vrf table 10
+      - cmd: ip link set hoge up
+      - cmd: ip link set net0 master hoge
+      - cmd: sysctl -w net.ipv4.ip_forward=1
+      - cmd: sysctl -w net.mpls.conf.lo.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net0.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net1.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.platform_labels=1024 > /dev/null
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 1.1.1.1/32"
+          -c "mpls ldp"
+          -c "address-family ipv4"
+          -c "discovery transport-address 1.1.1.1"
+          -c "interface net1"
+          -c "exit"
+          -c "router ospf"
+          -c "network 1.1.1.1/24 area 0"
+          -c "network 192.168.2.0/24 area 0"
+          -c "network 192.168.1.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 3.3.3.3 remote-as 65000"
+          -c "neighbor 3.3.3.3 update-source 1.1.1.1"
+          -c "address-family ipv4 vpn"
+          -c "neighbor 3.3.3.3 activate"
+          -c "exit-address-family"
+          -c "exit"
+          -c "ip route 10.1.0.0/24 192.168.1.1 vrf hoge"
+          -c "exit"
+          -c "conf t"
+          -c "router bgp 65000 vrf hoge"
+          -c "address-family ipv4 unicast"
+          -c "redistribute static"
+          -c "label vpn export auto"
+          -c "rd vpn export 1:100"
+          -c "rt vpn both 10:100"
+          -c "export vpn"
+          -c "import vpn"
+          -c "exit-address-family"
+          -c "exit"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.2.2/24 dev net0
+      - cmd: ip addr add 192.168.3.1/24 dev net1
+      - cmd: sysctl -w net.ipv4.ip_forward=1
+      - cmd: sysctl -w net.mpls.conf.lo.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net0.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net1.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.platform_labels=1024 > /dev/null
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 2.2.2.2/32"
+          -c "mpls ldp"
+          -c "address-family ipv4"
+          -c "discovery transport-address 2.2.2.2"
+          -c "interface net0"
+          -c "exit"
+          -c "interface net1"
+          -c "exit"
+          -c "router ospf"
+          -c "network 192.168.2.0/24 area 0"
+          -c "network 2.2.2.2/24 area 0"
+          -c "network 192.168.3.0/24 area 0"
+  - name: R3
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.3.2/24 dev net0
+      - cmd: ip addr add 192.168.4.1/24 dev net1
+      - cmd: ip link add hoge type vrf table 10
+      - cmd: ip link set hoge up
+      - cmd: ip link set net1 master hoge
+      - cmd: sysctl -w net.ipv4.ip_forward=1
+      - cmd: sysctl -w net.mpls.conf.lo.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net0.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.conf.net1.input=1 > /dev/null
+      - cmd: sysctl -w net.mpls.platform_labels=1024 > /dev/null
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 3.3.3.3/32"
+          -c "mpls ldp"
+          -c "address-family ipv4"
+          -c "discovery transport-address 3.3.3.3"
+          -c "interface net0"
+          -c "exit"
+          -c "router ospf"
+          -c "network 3.3.3.3/24 area 0"
+          -c "network 192.168.3.0/24 area 0"
+          -c "network 192.168.4.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 1.1.1.1 remote-as 65000"
+          -c "neighbor 1.1.1.1 update-source 3.3.3.3"
+          -c "address-family ipv4 vpn"
+          -c "neighbor 1.1.1.1 activate"
+          -c "exit-address-family"
+          -c "exit"
+          -c "ip route 10.2.0.0/24 192.168.4.2 vrf hoge"
+          -c "exit"
+          -c "conf t"
+          -c "router bgp 65000 vrf hoge"
+          -c "address-family ipv4 unicast"
+          -c "redistribute static"
+          -c "label vpn export auto"
+          -c "rd vpn export 1:100"
+          -c "rt vpn both 10:100"
+          -c "export vpn"
+          -c "import vpn"
+          -c "exit-address-family"
+          -c "exit"
+  - name: R4
+    cmds:
+      - cmd: ip addr add 192.168.4.2/24 dev net0
+      - cmd: ip addr add 10.2.0.2/24 dev net1
+      - cmd: ip route add 0.0.0.0/0 via 192.168.4.1
+  - name: C0
+    cmds:
+      - cmd: ip addr add 10.1.0.1/24 dev net0
+      - cmd: ip route replace default via 10.1.0.2
+  - name: C1
+    cmds:
+      - cmd: ip addr add 10.2.0.1/24 dev net0
+      - cmd: ip route replace default via 10.2.0.2
