@@ -1,3 +1,4 @@
 # tinetenisample  
 
-tinetで起動できるサンプル  
+https://github.com/tinynetwork/tinet  
+で起動できるサンプル
