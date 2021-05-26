@@ -73,16 +73,19 @@ node_configs:
       - cmd: ip addr add 192.168.1.1/24 dev net2
       - cmd: >-
           vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 1.1.1.1/32"
           -c "router ospf"
-          -c "network 192.168.1.0/24 area 0"
+          -c "network 1.1.1.1/24 area 0"
           -c "network 192.168.7.0/24 area 0"
           -c "network 192.168.2.0/24 area 0"
           -c "passive-interface net2"
-          -c "redistribute bgp"
-          -c "router bgp 65535"
+          -c "router bgp 65530"
+          -c "neighbor 2.2.2.2 remote-as 65530"
+          -c "neighbor 2.2.2.2 update-source 1.1.1.1"
           -c "neighbor 192.168.1.2 remote-as 65533"
-          -c "neighbor 192.168.5.2 remote-as 65535"
-          -c "neighbor 192.168.3.2 remote-as 65535"
+          -c "exit-address-family"
+
   - name: R1
     cmds:
       - cmd: /usr/lib/frr/frr start
@@ -91,16 +94,18 @@ node_configs:
       - cmd: ip addr add 192.168.5.2/24 dev net2
       - cmd: >-
           vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 2.2.2.2/32"
           -c "router ospf"
+          -c "network 2.2.2.2/24 area 0"
           -c "network 192.168.3.0/24 area 0"
           -c "network 192.168.5.0/24 area 0"
-          -c "network 192.168.6.0/24 area 0"
           -c "passive-interface net0"
-          -c "redistribute bgp"
-          -c "router bgp 65535"
+          -c "router bgp 65530"
+          -c "neighbor 1.1.1.1 remote-as 65530"
+          -c "neighbor 1.1.1.1 update-source 2.2.2.2"
           -c "neighbor 192.168.6.1 remote-as 65532"
-          -c "neighbor 192.168.7.1 remote-as 65535"
-          -c "neighbor 192.168.2.1 remote-as 65535"
+          -c "exit-address-family"
   - name: R2
     cmds:
       - cmd: /usr/lib/frr/frr start
@@ -151,7 +156,7 @@ node_configs:
       - cmd: >-
           vtysh -c "conf t"
           -c "router bgp 65532"
-          -c "neighbor 192.168.6.2 remote-as 65535"
+          -c "neighbor 192.168.6.2 remote-as 65530"
           -c "network 192.168.9.0/24"
 
   - name: R7
@@ -163,7 +168,7 @@ node_configs:
       - cmd: >-
           vtysh -c "conf t"
           -c "router bgp 65533"
-          -c "neighbor 192.168.1.1 remote-as 65535"
+          -c "neighbor 192.168.1.1 remote-as 65530"
           -c "network 192.168.10.0/24"
   - name: C1
     cmds:
