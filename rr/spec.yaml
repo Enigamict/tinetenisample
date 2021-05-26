@@ -1,0 +1,124 @@
+nodes:
+  - name: RR
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net1 }
+      - { name: net1, type: direct, args: R4#net0 }
+      - { name: net2, type: direct, args: R5#net0 }
+
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net0 }
+      - { name: net1, type: direct, args: C1#net0 }
+
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net0 }
+      - { name: net1, type: direct, args: RR#net0 }
+
+  - name: R4
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: RR#net1 }
+
+  - name: R5
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: RR#net2 }
+  - name: C1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net1 }
+node_configs:
+  - name: RR
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.2.1/24 dev net0
+      - cmd: ip addr add 192.168.3.1/24 dev net1
+      - cmd: ip addr add 192.168.4.1/24 dev net2
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 1.1.1.1/32"
+          -c "router ospf"
+          -c "network 1.1.1.1/24 area 0"
+          -c "network 192.168.2.0/24 area 0"
+          -c "network 192.168.3.0/24 area 0"
+          -c "network 192.168.4.0/24 area 0"
+          -c "exit"
+          -c "router bgp 65530"
+          -c "neighbor 2.2.2.2 remote-as 65530"
+          -c "neighbor 2.2.2.2 route-reflector-client"
+          -c "neighbor 3.3.3.3 remote-as 65530"
+          -c "neighbor 3.3.3.3 update-source 1.1.1.1"
+          -c "neighbor 3.3.3.3 route-reflector-client"
+          -c "neighbor 4.4.4.4 remote-as 65530"
+          -c "neighbor 4.4.4.4 update-source 1.1.1.1"
+          -c "neighbor 4.4.4.4 route-reflector-client"
+          -c "neighbor 2.2.2.2 update-source 1.1.1.1"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 10.0.1.2/24 dev net0
+      - cmd: ip addr add 192.168.2.2/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 2.2.2.2/32"
+          -c "router ospf"
+          -c "network 2.2.2.2/24 area 0"
+          -c "network 192.168.2.0/24 area 0"
+          -c "passive-interface net0"
+          -c "exit"
+          -c "router bgp 65530"
+          -c "neighbor 1.1.1.1 remote-as 65530"
+          -c "neighbor 1.1.1.1 update-source 2.2.2.2"
+          -c "neighbor 1.1.1.1 next-hop-self"
+          -c "neighbor 10.0.1.1 remote-as 65533"
+  - name: R4
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.3.2/24 dev net0
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 3.3.3.3/32"
+          -c "router ospf"
+          -c "network 3.3.3.3/24 area 0"
+          -c "network 192.168.3.0/24 area 0"
+          -c "exit"
+          -c "router bgp 65530"
+          -c "neighbor 1.1.1.1 remote-as 65530"
+          -c "neighbor 1.1.1.1 update-source 3.3.3.3"
+  - name: R5
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.4.2/24 dev net0
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 4.4.4.4/32"
+          -c "router ospf"
+          -c "network 4.4.4.4/24 area 0"
+          -c "network 192.168.4.0/24 area 0"
+          -c "exit"
+          -c "router bgp 65530"
+          -c "neighbor 1.1.1.1 remote-as 65530"
+          -c "neighbor 1.1.1.1 update-source 4.4.4.4"
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 10.0.1.1/24 dev net0
+      - cmd: ip addr add 10.0.2.2/24 dev net1
+      - cmd: ip route replace default via 10.0.1.2
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65533"
+          -c "neighbor 10.0.1.2 remote-as 65530"
+          -c "network 10.0.2.0/24"
+  - name: C1
+    cmds:
+      - cmd: ip addr add 10.0.2.1/24 dev net0
+      - cmd: ip route replace default via 10.0.2.2
