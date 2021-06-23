@@ -1,0 +1,95 @@
+nodes:
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R3#net0 }
+      - { name: net1, type: direct, args: R4#net0 }
+      - { name: net2, type: direct, args: C0#net0 }
+
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R5#net0 }
+      - { name: net1, type: direct, args: R3#net1 }
+
+  - name: R3
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net0 }
+      - { name: net1, type: direct, args: R2#net1 }
+
+  - name: R4
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net1 }
+      - { name: net1, type: direct, args: R5#net1 }
+  - name: R5
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R2#net0 }
+      - { name: net1, type: direct, args: R4#net1 }
+  - name: C0
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: direct, args: R1#net2 }
+
+node_configs:
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.1.1/24 dev net0
+      - cmd: ip addr add 192.168.2.1/24 dev net1
+      - cmd: ip addr add 10.0.0.1/24 dev net2
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65000"
+          -c "neighbor 192.168.1.2 remote-as 65001"
+          -c "network 10.0.0.0/24" 
+          -c "neighbor 192.168.2.2 remote-as 65005"
+          -c "neighbor 192.168.2.2 route-map aspath-prepend out" 
+          -c "route-map aspath permit 10" 
+          -c "set as-path prepend 5 5"
+  - name: R3
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.1.2/24 dev net0
+      - cmd: ip addr add 192.168.3.1/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65001"
+          -c "neighbor 192.168.1.1 remote-as 65000"
+          -c "neighbor 192.168.3.2 remote-as 65003"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.4.1/24 dev net0
+      - cmd: ip addr add 192.168.3.2/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65003"
+          -c "neighbor 192.168.4.2 remote-as 65004"
+          -c "neighbor 192.168.3.1 remote-as 65001"
+  - name: R5
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.4.2/24 dev net0
+      - cmd: ip addr add 192.168.5.1/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65004"
+          -c "neighbor 192.168.4.1 remote-as 65003"
+          -c "neighbor 192.168.5.2 remote-as 65005"
+  - name: R4
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip addr add 192.168.2.2/24 dev net0
+      - cmd: ip addr add 192.168.5.2/24 dev net1
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "router bgp 65005"
+          -c "neighbor 192.168.2.1 remote-as 65000"
+          -c "neighbor 192.168.5.1 remote-as 65004"
+  - name: C0
+    cmds:
+      - cmd: ip addr add 10.0.0.2/24 dev net0
+      - cmd: ip route replace default via 10.0.0.1
