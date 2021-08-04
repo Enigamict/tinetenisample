@@ -1,0 +1,235 @@
+
+nodes:
+  - name: C1
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R1#net1 } ]
+  - name: C2
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R1#net2 } ]
+  - name: C3
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R2#net1 } ]
+  - name: C4
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R2#net2 } ]
+  - name: C5
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R3#net1 } ]
+  - name: C6
+    image: slankdev/ubuntu:18.04
+    interfaces: [ { name: net0, type: direct, args: R3#net2 } ]
+
+  - name: R1
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: bridge, args: BB_SW }
+      - { name: net1, type: direct, args: C1#net0 }
+      - { name: net2, type: direct, args: C2#net0 }
+        
+  - name: R2
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: bridge, args: BB_SW }
+      - { name: net1, type: direct, args: C3#net0 }
+      - { name: net2, type: direct, args: C4#net0 }
+  - name: R3
+    image: slankdev/frr
+    interfaces:
+      - { name: net0, type: bridge, args: BB_SW }
+      - { name: net1, type: direct, args: C5#net0 }
+      - { name: net2, type: direct, args: C6#net0 }
+switches:
+  - name: BB_SW
+    interfaces:
+      - { name: net0, type: container, args: R1 }
+      - { name: net0, type: container, args: R2 }
+      - { name: net0, type: container, args: R3 }
+
+node_configs:        
+  - name: C1
+    cmds:
+      - cmd: ip addr add 192.168.0.1/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:aa:02:00
+  - name: C2
+    cmds:
+      - cmd: ip addr add 192.168.0.2/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:bb:02:00
+  - name: C3
+    cmds:
+      - cmd: ip addr add 192.168.0.3/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:cc:02:00
+  - name: C4
+    cmds:
+      - cmd: ip addr add 192.168.0.4/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:dd:02:00
+  - name: C5
+    cmds:
+      - cmd: ip addr add 192.168.0.5/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:ee:02:00
+  - name: C6
+    cmds:
+      - cmd: ip addr add 192.168.0.6/24 dev net0
+      - cmd: ip link set net0 address 52:54:00:ff:02:00
+
+  - name: R1
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip link set net0 address 52:54:00:aa:10:00
+      - cmd: ip link add br100 type bridge
+      - cmd: ip link set dev br100 up
+      - cmd: ip link add br200 type bridge
+      - cmd: ip link set dev br200 up
+      - cmd: >-
+          ip link add vxlan100 type vxlan id 100
+          dstport 4789
+      - cmd: >-
+          ip link add vxlan200 type vxlan id 200
+          dstport 4789
+      - cmd: ip link set dev net1 master br100
+      - cmd: ip link set dev net1 promisc on
+      - cmd: ip link set dev net1 up
+      - cmd: ip link set dev net2 master br200
+      - cmd: ip link set dev net2 promisc on
+      - cmd: ip link set dev net2 up
+      - cmd: ip link set dev vxlan100 master br100
+      - cmd: ip link set dev vxlan100 promisc on
+      - cmd: ip link set dev vxlan100 up
+      - cmd: ip link set dev vxlan200 master br200
+      - cmd: ip link set dev vxlan200 promisc on
+      - cmd: ip link set dev vxlan200 up
+
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 1.1.1.1/32"
+          -c "interface net0"
+          -c "ip address 10.0.0.1/24"
+          -c "router ospf"
+          -c "network 1.1.1.1/24 area 0"
+          -c "network 10.0.0.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 3.3.3.3 remote-as internal"
+          -c "neighbor 3.3.3.3 update-source 1.1.1.1"
+          -c "neighbor 2.2.2.2 remote-as internal"
+          -c "neighbor 2.2.2.2 update-source 1.1.1.1"
+          -c "address-family l2vpn evpn"
+          -c "neighbor 3.3.3.3 activate"
+          -c "neighbor 2.2.2.2 activate"
+          -c "advertise-all-vni"
+          -c "vni 100"
+          -c "route-target import 1:1"
+          -c "route-target export 1:1"
+          -c "exit-vni"
+          -c "vni 200"
+          -c "route-target import 2:2"
+          -c "route-target export 2:2"
+          -c "exit-vni"
+          -c "exit-address-family"
+  - name: R2
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip link set net0 address 52:54:00:aa:20:00
+      - cmd: ip link add br100 type bridge
+      - cmd: ip link set dev br100 up
+      - cmd: ip link add br200 type bridge
+      - cmd: ip link set dev br200 up
+      - cmd: >-
+          ip link add vxlan100 type vxlan id 100
+          dstport 4789
+      - cmd: >-
+          ip link add vxlan200 type vxlan id 200
+          dstport 4789
+      - cmd: ip link set dev net1 master br100
+      - cmd: ip link set dev net1 promisc on
+      - cmd: ip link set dev net1 up
+      - cmd: ip link set dev net2 master br200
+      - cmd: ip link set dev net2 promisc on
+      - cmd: ip link set dev net2 up
+      - cmd: ip link set dev vxlan100 master br100
+      - cmd: ip link set dev vxlan100 promisc on
+      - cmd: ip link set dev vxlan100 up
+      - cmd: ip link set dev vxlan200 master br200
+      - cmd: ip link set dev vxlan200 promisc on
+      - cmd: ip link set dev vxlan200 up
+
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 2.2.2.2/32"
+          -c "interface net0"
+          -c "ip address 10.0.0.2/24"
+          -c "router ospf"
+          -c "network 2.2.2.2/24 area 0"
+          -c "network 10.0.0.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 3.3.3.3 remote-as internal"
+          -c "neighbor 3.3.3.3 update-source 2.2.2.2"
+          -c "neighbor 1.1.1.1 remote-as internal"
+          -c "neighbor 1.1.1.1 update-source 2.2.2.2"
+          -c "address-family l2vpn evpn"
+          -c "neighbor 3.3.3.3 activate"
+          -c "neighbor 1.1.1.1 activate"
+          -c "advertise-all-vni"
+          -c "vni 100"
+          -c "route-target import 1:1"
+          -c "route-target export 1:1"
+          -c "exit-vni"
+          -c "vni 200"
+          -c "route-target import 2:2"
+          -c "route-target export 2:2"
+          -c "exit-vni"
+          -c "exit-address-family"
+  - name: R3
+    cmds:
+      - cmd: /usr/lib/frr/frr start
+      - cmd: ip link set net0 address 52:54:00:aa:30:00
+      - cmd: ip link add br100 type bridge
+      - cmd: ip link set dev br100 up
+      - cmd: ip link add br200 type bridge
+      - cmd: ip link set dev br200 up
+      - cmd: >-
+          ip link add vxlan100 type vxlan id 100
+          dstport 4789
+      - cmd: >-
+          ip link add vxlan200 type vxlan id 200
+          dstport 4789
+      - cmd: ip link set dev net1 master br100
+      - cmd: ip link set dev net1 promisc on
+      - cmd: ip link set dev net1 up
+      - cmd: ip link set dev net2 master br200
+      - cmd: ip link set dev net2 promisc on
+      - cmd: ip link set dev net2 up
+      - cmd: ip link set dev vxlan100 master br100
+      - cmd: ip link set dev vxlan100 promisc on
+      - cmd: ip link set dev vxlan100 up
+      - cmd: ip link set dev vxlan200 master br200
+      - cmd: ip link set dev vxlan200 promisc on
+      - cmd: ip link set dev vxlan200 up
+
+      - cmd: >-
+          vtysh -c "conf t"
+          -c "interface lo"
+          -c "ip address 3.3.3.3/32"
+          -c "interface net0"
+          -c "ip address 10.0.0.3/24"
+          -c "router ospf"
+          -c "network 3.3.3.3/24 area 0"
+          -c "network 10.0.0.0/24 area 0"
+          -c "router bgp 65000"
+          -c "neighbor 2.2.2.2 remote-as internal"
+          -c "neighbor 2.2.2.2 update-source 3.3.3.3"
+          -c "neighbor 1.1.1.1 remote-as internal"
+          -c "neighbor 1.1.1.1 update-source 3.3.3.3"
+          -c "address-family l2vpn evpn"
+          -c "neighbor 1.1.1.1 activate"
+          -c "neighbor 2.2.2.2 activate"
+          -c "advertise-all-vni"
+          -c "vni 100"
+          -c "route-target import 1:1"
+          -c "route-target export 1:1"
+          -c "exit-vni"
+          -c "vni 200"
+          -c "route-target import 2:2"
+          -c "route-target export 2:2"
+          -c "exit-vni"
+          -c "exit-address-family"
